@@ -1,5 +1,5 @@
-
-# Hadoop Single Node Setup on WSL (Ubuntu)
+```markdown
+# Hadoop Pseudo-Distributed Setup Guide for WSL (Ubuntu)
 
 ## Table of Contents
 
@@ -26,13 +26,11 @@
 * [Acknowledgments](#acknowledgments)
 * [Changelog](#changelog)
 
----
-
 ## About This Project
 
-This repository contains a complete, step-by-step tutorial for setting up **Apache Hadoop 3.3.6** in **Single Node mode** on **WSL (Windows Subsystem for Linux)** with Ubuntu 20.04.
+This repository contains a complete, step-by-step tutorial for setting up **Apache Hadoop 3.3.6** in **Pseudo-Distributed mode (Single Node)** on **WSL (Windows Subsystem for Linux)** with Ubuntu 20.04.
 
-I created this guide as an educational resource for my students and anyone interested in learning Hadoop from scratch. Throughout this tutorial, I document every command I used, explain what each component does, and provide troubleshooting tips based on real-world scenarios.
+I created this guide as an educational resource for my students and anyone interested in learning Hadoop from scratch. Throughout this tutorial, I document every command used, explain each component's purpose, and provide troubleshooting tips based on real-world scenarios.
 
 What you'll learn:
 
@@ -44,21 +42,17 @@ What you'll learn:
 
 This is a **hands-on tutorial** designed for beginners with basic Linux knowledge.
 
----
-
 ## Author
 
-**Thiago C. Soares**
-Email: thiagocsoares@gmail.com
+**Thiago C. Soares**  
+Email: thiagocsoares@gmail.com  
 LinkedIn: [linkedin.com/in/thiago-csoares](https://linkedin.com/in/thiago-csoares)
 
 Created for educational purposes to help students and developers understand Hadoop fundamentals.
 
----
-
 ## Prerequisites
 
-Before starting this tutorial, make sure you have:
+Before starting this tutorial, ensure you have:
 
 * **Windows 10/11** with WSL 2 enabled
 * **Ubuntu 20.04 LTS** installed on WSL (or similar Debian-based distribution)
@@ -69,33 +63,32 @@ Before starting this tutorial, make sure you have:
 
 Note: If you don't have WSL installed, follow the **official Microsoft WSL installation guide**.
 
----
-
 ## Architecture Overview
 
 In this Single Node setup, all Hadoop daemons run on the same machine. Here's what we'll be running:
 
+```
 ┌─────────────────────────────────────────────────────┐
-│                   Single Node Hadoop                │
+│                 Single Node Hadoop                  │
 ├─────────────────────────────────────────────────────┤
 │                                                     │
 │  ┌──────────────────────────────────────────┐       │
-│  │         HDFS Layer (Port 9000)           │       │
+│  │         HDFS Layer (Port 9000)          │       │
 │  ├──────────────────────────────────────────┤       │
-│  │  • NameNode (Metadata Management)        │       │
-│  │  • DataNode (Data Storage)               │       │
-│  │  • SecondaryNameNode (Checkpoint)        │       │
+│  │  • NameNode (Metadata Management)       │       │
+│  │  • DataNode (Data Storage)              │       │
+│  │  • SecondaryNameNode (Checkpoint)       │       │
 │  └──────────────────────────────────────────┘       │
 │                                                     │
 │  ┌──────────────────────────────────────────┐       │
-│  │      YARN Layer (Resource Manager)       │       │
+│  │      YARN Layer (Resource Manager)      │       │
 │  ├──────────────────────────────────────────┤       │
-│  │  • ResourceManager (Job Scheduling)      │       │
-│  │  • NodeManager (Task Execution)          │       │
+│  │  • ResourceManager (Job Scheduling)     │       │
+│  │  • NodeManager (Task Execution)         │       │
 │  └──────────────────────────────────────────┘       │
 │                                                     │
 └─────────────────────────────────────────────────────┘
-
+```
 
 **Key Components:**
 
@@ -105,139 +98,151 @@ In this Single Node setup, all Hadoop daemons run on the same machine. Here's wh
 * **ResourceManager**: Manages cluster resources and scheduling
 * **NodeManager**: Manages containers and monitors resource usage
 
----
-
 ## Installation Guide
 
 ### Step 1: Update System and Install Dependencies
 
-First, I updated my system packages and installed all necessary dependencies that Hadoop requires to run properly.
+First, update system packages and install dependencies required for Hadoop.
 
+**Update package lists and upgrade existing packages**  
+This ensures the latest security patches and software versions.
 
-# Update package lists and upgrade existing packages
-# This ensures we have the latest security patches and software versions
+```bash
 sudo apt update && sudo apt upgrade -y
+```
 
-# Install required packages:
-# - ssh: Hadoop daemons communicate via SSH protocol
-# - pdsh: Parallel Distributed Shell for managing multiple hosts
-# - openjdk-11-jdk: Java Development Kit (Hadoop is written in Java)
-# - wget: Tool to download files from the web
-# - tar: Utility to extract compressed archives
+**Install required packages**  
+Install the following packages needed for Hadoop:
+
+* `ssh`: Enables Hadoop daemons to communicate via SSH protocol
+* `pdsh`: Parallel Distributed Shell for managing multiple hosts
+* `openjdk-11-jdk`: Java Development Kit, required as Hadoop is written in Java
+* `wget`: Tool to download files from the web
+* `tar`: Utility to extract compressed archives
+
+```bash
 sudo apt install ssh pdsh openjdk-11-jdk wget tar -y
+```
 
-# Verify Java installation
-# This should display Java version 11.x.x
+**Verify Java installation**  
+Run the following command to confirm Java is installed correctly. It should display Java version 11.x.x.
+
+```bash
 java -version
-Expected output:
+```
 
+**Expected output**:
+```bash
 openjdk version "11.0.x" 2024-xx-xx
 OpenJDK Runtime Environment (build 11.0.x+x-Ubuntu-...)
 OpenJDK 64-Bit Server VM (build 11.0.x+x-Ubuntu-...)
-Why these packages?
+```
 
-SSH: Hadoop uses SSH to start and stop daemons on different nodes (even in single-node mode)
+**Why these packages?**  
+- **SSH**: Hadoop uses SSH to start and stop daemons, even in single-node mode.  
+- **PDSH**: Allows executing commands across multiple machines simultaneously.  
+- **Java 11**: Hadoop 3.3.6 requires Java 8 or 11 to run.  
+- **wget/tar**: Essential for downloading and extracting Hadoop binaries.
 
-PDSH: Allows executing commands across multiple machines simultaneously
+### Step 2: Download and Configure Hadoop
 
-Java 11: Hadoop 3.3.6 requires Java 8 or 11 to run
+Download the official Hadoop distribution and set up the directory structure.
 
-wget/tar: Essential tools for downloading and extracting Hadoop binaries
-
-Step 2: Download and Configure Hadoop
-Now I downloaded the official Hadoop distribution and set up the directory structure.
-
+```bash
 # Download Hadoop 3.3.6 from Apache mirrors
-# The -P flag specifies the download directory (home folder)
-wget [https://downloads.apache.org/hadoop/common/hadoop-3.3.6/hadoop-3.3.6.tar.gz](https://downloads.apache.org/hadoop/common/hadoop-3.3.6/hadoop-3.3.6.tar.gz) -P ~
+wget https://downloads.apache.org/hadoop/common/hadoop-3.3.6/hadoop-3.3.6.tar.gz -P ~
 
 # Extract the downloaded archive
-# -x: extract files
-# -v: verbose mode (show progress)
-# -z: handle gzip compression (.gz files)
-# -f: specify the archive filename
-# -C: change to directory before extracting
 tar -xvzf ~/hadoop-3.3.6.tar.gz -C ~
 
-# Rename the directory to a simpler name for easier access
-# This makes our path cleaner: ~/hadoop instead of ~/hadoop-3.3.6
+# Rename the directory for easier access
 mv ~/hadoop-3.3.6 ~/hadoop
-What just happened? I downloaded approximately 600MB of Hadoop binaries, extracted them, and created a clean directory structure. The ~/hadoop folder now contains all necessary files to run Hadoop.
+```
 
-Directory structure overview:
+**What just happened?**  
+You downloaded approximately 600MB of Hadoop binaries, extracted them, and created a clean directory structure. The `~/hadoop` folder now contains all necessary files to run Hadoop.
 
+**Directory structure overview**:
+```
 ~/hadoop/
 ├── bin/          # Hadoop command-line scripts
 ├── etc/hadoop/   # Configuration files (we'll modify these)
 ├── sbin/         # Start/stop scripts for daemons
 ├── share/        # Hadoop JARs and libraries
 └── lib/          # Native libraries
-Step 3: Set Up Environment Variables
-I configured the system environment variables so Hadoop commands are accessible from anywhere in the terminal.
+```
 
+### Step 3: Set Up Environment Variables
 
-# Open the bash configuration file with nano editor
+Configure environment variables to make Hadoop commands accessible from any directory.
+
+```bash
+# Open the bash configuration file
 nano ~/.bashrc
-Add the following lines at the end of the file:
+```
 
+Add the following lines at the end of the file:
+```bash
 # Set Hadoop home directory
 export HADOOP_HOME=~/hadoop
 # Configure Hadoop environment variables
-# These variables tell Hadoop where to find its components
 export HADOOP_INSTALL=$HADOOP_HOME
 export HADOOP_MAPRED_HOME=$HADOOP_HOME
 export HADOOP_COMMON_HOME=$HADOOP_HOME
 export HADOOP_HDFS_HOME=$HADOOP_HOME
 export YARN_HOME=$HADOOP_HOME
 export HADOOP_COMMON_LIB_NATIVE_DIR=$HADOOP_HOME/lib/native
-# Add Hadoop binaries and scripts to system PATH
-# This allows us to run hadoop commands from any directory
+# Add Hadoop binaries and scripts to PATH
 export PATH=$PATH:$HADOOP_HOME/sbin:$HADOOP_HOME/bin
 # Set Java home directory
-# Hadoop needs to know where Java is installed
 export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-Save and exit nano: Press Ctrl+X, then Y, then Enter
+```
 
-Bash
+Save and exit nano: Press `Ctrl+X`, then `Y`, then `Enter`.
 
-# Reload the bash configuration to apply changes immediately
-# Without this, we'd need to close and reopen the terminal
+```bash
+# Reload the bash configuration
 source ~/.bashrc
 
 # Verify Hadoop installation
 hadoop version
+```
+
 Expected output:
-
+```bash
 Hadoop 3.3.6
-Source code repository [https://github.com/apache/hadoop.git](https://github.com/apache/hadoop.git) -r ...
+Source code repository https://github.com/apache/hadoop.git -r ...
 Compiled by ... on 2023-xx-xxTxx:xx:xxZ
-Why environment variables matter: Environment variables are like shortcuts that tell your system where to find programs. Without setting HADOOP_HOME and adding it to PATH, I would need to type the full path /home/username/hadoop/bin/hadoop every time I want to run a Hadoop command.
+```
 
-Step 4: Configure Hadoop XML Files
-This is the most critical step. I configured the core Hadoop XML files to define how the system operates.
+**Why environment variables matter**: Without setting `HADOOP_HOME` and adding it to `PATH`, you'd need to use the full path (`/home/username/hadoop/bin/hadoop`) for every command.
 
-4.1: Configure Java Environment
-Bash
+### Step 4: Configure Hadoop XML Files
 
+Configure Hadoop's XML files to define system operations.
+
+#### 4.1: Configure Java Environment
+
+```bash
 # Edit the Hadoop environment script
 nano ~/hadoop/etc/hadoop/hadoop-env.sh
-Find and uncomment (or add) this line:
+```
 
-Bash
-
-# Tell Hadoop where Java is installed
-# This prevents "JAVA_HOME not set" errors
+Add or uncomment:
+```bash
 export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-4.2: Configure core-site.xml
-This file defines the default file system URI and other core configurations.
+```
 
-Bash
+#### 4.2: Configure core-site.xml
 
+This file defines the default file system URI.
+
+```bash
 nano ~/hadoop/etc/hadoop/core-site.xml
+```
+
 Replace the content with:
-
-XML
-
+```xml
 <configuration>
   <property>
     <name>fs.defaultFS</name>
@@ -248,18 +253,20 @@ XML
     </description>
   </property>
 </configuration>
-What this does: When I run HDFS commands, Hadoop knows to connect to localhost:9000 instead of the local file system.
+```
 
-4.3: Configure hdfs-site.xml
-This file controls HDFS-specific settings like replication and storage directories.
+**What this does**: Hadoop connects to `localhost:9000` for HDFS commands.
 
-Bash
+#### 4.3: Configure hdfs-site.xml
 
+This file controls HDFS settings like replication and storage directories.
+
+```bash
 nano ~/hadoop/etc/hadoop/hdfs-site.xml
+```
+
 Replace the content with:
-
-XML
-
+```xml
 <configuration>
   <property>
     <name>dfs.replication</name>
@@ -269,7 +276,6 @@ XML
       we only need one copy of each block.
     </description>
   </property>
-
   <property>
     <name>dfs.namenode.name.dir</name>
     <value>file:///home/thiagosoares/hadoop_data/hdfs/namenode</value>
@@ -278,7 +284,6 @@ XML
       and transaction logs persistently.
     </description>
   </property>
-
   <property>
     <name>dfs.datanode.data.dir</name>
     <value>file:///home/thiagosoares/hadoop_data/hdfs/datanode</value>
@@ -288,21 +293,20 @@ XML
     </description>
   </property>
 </configuration>
-Critical note: Replace thiagosoares with your actual Ubuntu username! You can check your username with:
+```
 
-Bash
+**Critical note**: Replace `thiagosoares` with your actual Ubuntu username (check with `whoami`).
 
-whoami
-4.4: Configure mapred-site.xml
-This file specifies the MapReduce framework to use.
+#### 4.4: Configure mapred-site.xml
 
-Bash
+This file specifies the MapReduce framework.
 
+```bash
 nano ~/hadoop/etc/hadoop/mapred-site.xml
+```
+
 Replace the content with:
-
-XML
-
+```xml
 <configuration>
   <property>
     <name>mapreduce.framework.name</name>
@@ -313,18 +317,20 @@ XML
     </description>
   </property>
 </configuration>
-Why YARN? YARN separates resource management from job scheduling, making Hadoop more efficient and allowing it to run non-MapReduce workloads.
+```
 
-4.5: Configure yarn-site.xml
+**Why YARN?** YARN separates resource management from job scheduling for efficiency.
+
+#### 4.5: Configure yarn-site.xml
+
 This file configures YARN services.
 
-Bash
-
+```bash
 nano ~/hadoop/etc/hadoop/yarn-site.xml
+```
+
 Replace the content with:
-
-XML
-
+```xml
 <configuration>
   <property>
     <name>yarn.nodemanager.aux-services</name>
@@ -334,619 +340,506 @@ XML
     </description>
   </property>
 </configuration>
-What is shuffle? In MapReduce, the "shuffle" phase is where output from mappers is transferred to reducers. YARN's NodeManager needs to provide this service.
+```
 
-Step 5: Create HDFS Directories
-I created the directories where HDFS will store metadata and actual data.
+**What is shuffle?** The shuffle phase transfers mapper output to reducers.
 
-Bash
+### Step 5: Create HDFS Directories
 
+Create directories for HDFS metadata and data.
+
+```bash
 # Create directory for NameNode metadata
-# The NameNode stores file system structure, permissions, and block locations here
 mkdir -p ~/hadoop_data/hdfs/namenode
 
 # Create directory for DataNode blocks
-# The actual file content (in 128MB blocks) is stored here
 mkdir -p ~/hadoop_data/hdfs/datanode
-Why separate directories?
+```
 
-NameNode directory: Contains critical metadata. If corrupted, you lose track of all your data.
+**Why separate directories?**  
+- **NameNode directory**: Stores critical metadata.  
+- **DataNode directory**: Stores actual data blocks.
 
-DataNode directory: Contains actual data blocks. In multi-node clusters, you'd have multiple DataNode directories for redundancy.
+### Step 6: Configure SSH for Hadoop
 
-Step 6: Configure SSH for Hadoop
-Hadoop requires passwordless SSH to localhost to start and manage its daemons.
+Hadoop requires passwordless SSH to localhost.
 
-Bash
-
+```bash
 # Generate SSH key pair
-# -t rsa: Use RSA algorithm
-# -P "": Empty passphrase (passwordless)
-# Press Enter for all prompts to use default settings
 ssh-keygen -t rsa -P ""
 
-# Add your public key to authorized keys
-# This allows SSH to localhost without password
+# Add public key to authorized keys
 cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
 
-# Set proper permissions (SSH requires these specific permissions)
+# Set proper permissions
 chmod 600 ~/.ssh/authorized_keys
 chmod 700 ~/.ssh
 
-# Start SSH service (required in WSL)
+# Start SSH service
 sudo service ssh start
 
-# Test SSH connection to localhost
-# Type 'yes' if prompted about host authenticity
+# Test SSH connection
 ssh localhost
-You should now be connected via SSH to your own machine. Type exit to return.
+```
 
-Why this step? Even though we're running everything on one machine, Hadoop's start scripts use SSH to launch daemons. Without passwordless SSH, Hadoop will fail to start.
+Type `exit` to return.  
+**Why this step?** Hadoop uses SSH to launch daemons, even in single-node mode.
 
-Step 7: Format the NameNode
-Before first use, I formatted the NameNode to initialize the HDFS file system.
+### Step 7: Format the NameNode
 
-Bash
+Initialize the HDFS file system.
 
+```bash
 # Format the HDFS filesystem
-# This creates the initial directory structure in the NameNode directory
-# WARNING: Only do this once! Formatting again will erase all HDFS data
 hdfs namenode -format
-Expected output (look for these lines):
+```
 
+Expected output:
+```bash
 Storage directory /home/thiagosoares/hadoop_data/hdfs/namenode has been successfully formatted.
-⚠️ IMPORTANT WARNING: Formatting the NameNode is like formatting a hard drive - it erases everything! Only run this command:
+```
 
-During initial setup
+**WARNING**: Only format during initial setup or to reset HDFS (erases all data).
 
-When you want to completely reset HDFS and lose all data
+### Step 8: Start Hadoop Services
 
-Step 8: Start Hadoop Services
-Now comes the moment of truth - starting all Hadoop daemons!
+Start all Hadoop daemons.
 
-Bash
-
-# Start HDFS daemons (NameNode, DataNode, SecondaryNameNode)
-# This script uses SSH to start each daemon
+```bash
+# Start HDFS daemons
 start-dfs.sh
 
-# Start YARN daemons (ResourceManager, NodeManager)
+# Start YARN daemons
 start-yarn.sh
-Expected output:
+```
 
+Expected output:
+```bash
 Starting namenodes on [localhost]
 Starting datanodes
 Starting secondary namenodes
 Starting resourcemanager
 Starting nodemanagers
-What's happening? These scripts are launching Java processes in the background that will handle all Hadoop operations. Each daemon has a specific role in the Hadoop ecosystem.
+```
 
-Step 9: Validate Installation
-I verified that all Hadoop services are running correctly.
+### Step 9: Validate Installation
 
-Bash
+Verify that all services are running.
 
+```bash
 # List all Java processes
-# This shows all running Hadoop daemons
 jps
-Expected output (process IDs will differ):
+```
 
+Expected output:
+```bash
 12345 NameNode
 12346 DataNode
 12347 SecondaryNameNode
 12348 ResourceManager
 12349 NodeManager
 12350 Jps
-If you see all 5 processes (excluding Jps), congratulations! Hadoop is running!
+```
 
-Access Web Interfaces
-Hadoop provides web UIs to monitor your cluster:
+**Access Web Interfaces**:  
+- **HDFS NameNode UI**: http://localhost:9870  
+- **YARN ResourceManager UI**: http://localhost:8088  
 
-HDFS NameNode UI:
-http://localhost:9870
-Here I can see: HDFS health and capacity, Live/dead DataNodes, File system browser, NameNode logs
+### Step 10: Test with Sample File
 
-YARN ResourceManager UI:
-http://localhost:8088
-Here I can see: Running applications, Cluster metrics (memory, CPU), Application history, NodeManager status
+Test HDFS by uploading a sample file.
 
-Screenshots placeholder:
-Add screenshots of both web interfaces to the docs/images/ folder
-
-Step 10: Test with Sample File
-Finally, I tested HDFS by uploading a sample file and verifying it's stored correctly.
-
-Bash
-
-# Create a simple test file in my home directory
+```bash
+# Create a test file
 echo "Hello Hadoop! This is my first file in HDFS." > ~/teste.txt
 
 # Create a user directory in HDFS
-# -p flag creates parent directories if they don't exist
-# IMPORTANT: Replace 'thiagosoares' with your username
 hdfs dfs -mkdir -p /user/thiagosoares
 
-# Upload the file from local filesystem to HDFS
-# -put copies files from local to HDFS
+# Upload the file to HDFS
 hdfs dfs -put ~/teste.txt /user/thiagosoares/
 
-# List files in HDFS to confirm upload
+# List files in HDFS
 hdfs dfs -ls /user/thiagosoares/
-Expected output:
+```
 
+Expected output:
+```bash
 Found 1 items
 -rw-r--r--   1 thiagosoares supergroup         44 2025-01-15 10:30 /user/thiagosoares/teste.txt
-Additional HDFS commands to try:
+```
 
-Bash
-
-# View file content directly from HDFS
+**Additional HDFS commands**:
+```bash
+# View file content
 hdfs dfs -cat /user/thiagosoares/teste.txt
 
-# Copy file from HDFS back to local filesystem
+# Copy file from HDFS to local
 hdfs dfs -get /user/thiagosoares/teste.txt ~/teste_from_hdfs.txt
 
-# Check file status and replication
+# Check file status
 hdfs dfs -stat "%n %r %b" /user/thiagosoares/teste.txt
 
 # Delete file from HDFS
 hdfs dfs -rm /user/thiagosoares/teste.txt
-Understanding HDFS paths:
+```
 
-Local filesystem: /home/thiagosoares/teste.txt
+## Troubleshooting
 
-HDFS filesystem: /user/thiagosoares/teste.txt
-These are two completely separate file systems!
-
-Troubleshooting
-Here are common issues I encountered and how I solved them:
-
-Issue 1: "Cannot start NameNode"
-Symptoms:
-
+**Issue 1: "Cannot start NameNode"**  
+**Symptoms**:  
+```bash
 Starting namenodes on [localhost]
-
 localhost: namenode is not starting
+```
 
-Solutions:
-
-Check if port 9000 is already in use:
-
-Bash
-
+**Solutions**:  
+- Check if port 9000 is in use:
+```bash
 sudo lsof -i :9000
-# If something is using port 9000, kill it or change Hadoop's port
-Verify JAVA_HOME is set correctly:
-
-Bash
-
+```
+- Verify `JAVA_HOME`:
+```bash
 echo $JAVA_HOME
-# Should output: /usr/lib/jvm/java-11-openjdk-amd64
-Check NameNode logs:
-
-Bash
-
+```
+- Check NameNode logs:
+```bash
 cat ~/hadoop/logs/hadoop-*-namenode-*.log
-Verify NameNode was formatted:
-
-Bash
-
+```
+- Verify NameNode formatting:
+```bash
 ls ~/hadoop_data/hdfs/namenode/current
-# Should contain files like VERSION, fsimage_*, edits_*
-Issue 2: "SSH Connection Refused"
-Symptoms:
+```
 
+**Issue 2: "SSH Connection Refused"**  
+**Symptoms**:  
+```bash
 localhost: ssh: connect to host localhost port 22: Connection refused
+```
 
-Solutions:
-
-Start SSH service:
-
-Bash
-
+**Solutions**:  
+- Start SSH service:
+```bash
 sudo service ssh start
-Verify SSH is running:
-
-Bash
-
+```
+- Verify SSH status:
+```bash
 sudo service ssh status
-Re-test SSH connection:
-
-Bash
-
-ssh localhost
-If still failing, regenerate SSH keys:
-
-Bash
-
+```
+- Regenerate SSH keys if needed:
+```bash
 rm ~/.ssh/id_rsa*
 ssh-keygen -t rsa -P ""
 cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-Issue 3: "HDFS Safe Mode" - Can't Write Files
-Symptoms:
+```
 
+**Issue 3: "HDFS Safe Mode"**  
+**Symptoms**:  
+```bash
 org.apache.hadoop.hdfs.server.namenode.SafeModeException: Cannot create directory /user/xxx. Name node is in safe mode.
+```
 
-What is Safe Mode? HDFS enters safe mode during startup while checking block replication. In safe mode, the filesystem is read-only.
-
-Solutions:
-
-Check safe mode status:
-
-Bash
-
+**Solutions**:  
+- Check safe mode status:
+```bash
 hdfs dfsadmin -safemode get
-Wait for automatic exit (usually 30 seconds):
-
-Bash
-
-# Watch the status
-watch -n 1 hdfs dfsadmin -safemode get
-Manually leave safe mode (not recommended in production):
-
-Bash
-
+```
+- Wait for automatic exit or manually leave:
+```bash
 hdfs dfsadmin -safemode leave
-Issue 4: "Permission Denied" Errors
-Symptoms:
+```
 
+**Issue 4: "Permission Denied" Errors**  
+**Symptoms**:  
+```bash
 mkdir: Permission denied: user=thiagosoares, access=WRITE, inode="/":root:supergroup:drwxr-xr-x
+```
 
-Solutions:
-
-Create directory with proper permissions:
-
-Bash
-
+**Solutions**:  
+- Create directory with proper permissions:
+```bash
 hdfs dfs -mkdir -p /user/$(whoami)
 hdfs dfs -chown $(whoami):supergroup /user/$(whoami)
-Always work in your user directory:
+```
 
-Bash
+**Issue 5: DataNode Not Starting**  
+**Symptoms**: `jps` shows NameNode but no DataNode.  
 
-# Good practice: use /user/yourname/
-hdfs dfs -put file.txt /user/$(whoami)/
-Issue 5: DataNode Not Starting
-Symptoms:
-
-jps shows NameNode but no DataNode
-
-Web UI shows 0 live nodes
-
-Solutions:
-
-Check if DataNode directory has incorrect cluster ID:
-
-Bash
-
-# Remove DataNode data (will not affect uploaded files, only local cache)
+**Solutions**:  
+- Remove DataNode data:
+```bash
 rm -rf ~/hadoop_data/hdfs/datanode/*
-
-# Restart DataNode
+```
+- Restart services:
+```bash
 stop-dfs.sh
 start-dfs.sh
-Verify DataNode logs:
-
-Bash
-
+```
+- Check DataNode logs:
+```bash
 cat ~/hadoop/logs/hadoop-*-datanode-*.log
-Issue 6: "Out of Memory" Errors
-Symptoms:
+```
 
+**Issue 6: "Out of Memory" Errors**  
+**Symptoms**:  
+```bash
 Java heap space
-
 OutOfMemoryError
+```
 
-Solutions:
-
-Increase Java heap size for HDFS:
-
-Bash
-
+**Solutions**:  
+- Increase Java heap size:
+```bash
 nano ~/hadoop/etc/hadoop/hadoop-env.sh
+```
 Add:
-
-Bash
-
+```bash
 export HADOOP_HEAPSIZE=2048
 export HADOOP_NAMENODE_OPTS="-Xmx2g"
 export HADOOP_DATANODE_OPTS="-Xmx1g"
-Restart Hadoop:
-
-Bash
-
+```
+- Restart Hadoop:
+```bash
 stop-dfs.sh
 stop-yarn.sh
 start-dfs.sh
 start-yarn.sh
-Useful Commands for Debugging
-Command	Description
-jps -ml	Check all Hadoop processes (detailed list)
-tail -f ~/hadoop/logs/hadoop-*-namenode-*.log	View real-time logs
-hdfs dfsadmin -report	Check HDFS health
-hdfs fsck / -files -blocks -locations	Verify HDFS blocks
-yarn node -list -all	Check YARN node status
-stop-dfs.sh && stop-yarn.sh	Stop all Hadoop services
+```
 
-Exportar para as Planilhas
-Practical Exercises
-Now that your Hadoop cluster is running, try these hands-on exercises:
+**Useful Debugging Commands**:
+| Command | Description |
+|---------|-------------|
+| `jps -ml` | Check all Hadoop processes (detailed) |
+| `tail -f ~/hadoop/logs/hadoop-*-namenode-*.log` | View real-time logs |
+| `hdfs dfsadmin -report` | Check HDFS health |
+| `hdfs fsck / -files -blocks -locations` | Verify HDFS blocks |
+| `yarn node -list -all` | Check YARN node status |
+| `stop-dfs.sh && stop-yarn.sh` | Stop all Hadoop services |
 
-Exercise 1: File Operations
-Practice basic HDFS commands:
+## Practical Exercises
 
-Bash
-
-# 1. Create a text file with your name and favorite quote
+### Exercise 1: File Operations
+```bash
+# Create a text file
 echo "Your Name - Your Favorite Quote" > ~/myinfo.txt
 
-# 2. Create a directory structure in HDFS
+# Create a directory structure in HDFS
 hdfs dfs -mkdir -p /user/$(whoami)/exercises/ex1
 
-# 3. Upload the file
+# Upload the file
 hdfs dfs -put ~/myinfo.txt /user/$(whoami)/exercises/ex1/
 
-# 4. List the file and note the file size
+# List the file
 hdfs dfs -ls /user/$(whoami)/exercises/ex1/
 
-# 5. View the file content
+# View file content
 hdfs dfs -cat /user/$(whoami)/exercises/ex1/myinfo.txt
 
-# 6. Create a copy of the file in HDFS
+# Create a copy in HDFS
 hdfs dfs -cp /user/$(whoami)/exercises/ex1/myinfo.txt /user/$(whoami)/exercises/ex1/myinfo_copy.txt
 
-# 7. Download the copy back to local filesystem
+# Download the copy
 hdfs dfs -get /user/$(whoami)/exercises/ex1/myinfo_copy.txt ~/myinfo_downloaded.txt
 
-# 8. Verify files are identical
+# Verify files are identical
 diff ~/myinfo.txt ~/myinfo_downloaded.txt
-Expected result: The diff command should return nothing (files are identical)
+```
 
-Exercise 2: Working with Large Files
-Learn how HDFS handles large files by creating and uploading a bigger dataset:
-
-Bash
-
-# 1. Generate a 200MB file with random data
+### Exercise 2: Working with Large Files
+```bash
+# Generate a 200MB file
 dd if=/dev/urandom of=~/large_file.bin bs=1M count=200
 
-# 2. Upload to HDFS
+# Upload to HDFS
 hdfs dfs -put ~/large_file.bin /user/$(whoami)/exercises/
 
-# 3. Check file status (note the block count)
+# Check file status
 hdfs dfs -stat "%n size: %b bytes, blocks: %r" /user/$(whoami)/exercises/large_file.bin
 
-# 4. Use fsck to see block distribution
+# Check block distribution
 hdfs fsck /user/$(whoami)/exercises/large_file.bin -files -blocks -locations
-Questions to answer:
+```
 
-How many blocks is your file split into? (Hint: 128MB default block size)
-
-Where are the blocks located?
-
-What's the replication factor?
-
-Exercise 3: Directory Operations
-Master directory management:
-
-Bash
-
-# 1. Create a nested directory structure
+### Exercise 3: Directory Operations
+```bash
+# Create a nested directory structure
 hdfs dfs -mkdir -p /user/$(whoami)/projects/2025/january/week1
 
-# 2. Create multiple test files
+# Create multiple test files
 for i in {1..5}; do
     echo "Test file $i" > ~/test_$i.txt
     hdfs dfs -put ~/test_$i.txt /user/$(whoami)/projects/2025/january/week1/
 done
 
-# 3. List recursively
+# List recursively
 hdfs dfs -ls -R /user/$(whoami)/projects/
 
-# 4. Get directory size
+# Get directory size
 hdfs dfs -du -h /user/$(whoami)/projects/
 
-# 5. Move all files to a new location
+# Move files
 hdfs dfs -mkdir /user/$(whoami)/archive/
 hdfs dfs -mv /user/$(whoami)/projects/2025/january/week1/* /user/$(whoami)/archive/
 
-# 6. Remove empty directories
+# Remove empty directories
 hdfs dfs -rm -r /user/$(whoami)/projects/
-Exercise 4: Permissions and Ownership
-Practice HDFS security:
+```
 
-Bash
-
-# 1. Create a directory
+### Exercise 4: Permissions and Ownership
+```bash
+# Create a directory
 hdfs dfs -mkdir /user/$(whoami)/secure_data
 
-# 2. Check default permissions
+# Check permissions
 hdfs dfs -ls /user/$(whoami)/ | grep secure_data
 
-# 3. Change permissions to read-only
+# Set read-only permissions
 hdfs dfs -chmod 444 /user/$(whoami)/secure_data
 
-# 4. Try to create a file (should fail)
+# Try to upload (should fail)
 hdfs dfs -put ~/teste.txt /user/$(whoami)/secure_data/
 
-# 5. Restore write permissions
+# Restore write permissions
 hdfs dfs -chmod 755 /user/$(whoami)/secure_data
 
-# 6. Now upload should work
+# Upload should now work
 hdfs dfs -put ~/teste.txt /user/$(whoami)/secure_data/
-Exercise 5: Monitoring and Administration
-Learn administrative commands:
+```
 
-Bash
-
-# 1. Generate HDFS health report
+### Exercise 5: Monitoring and Administration
+```bash
+# Generate HDFS health report
 hdfs dfsadmin -report > ~/hdfs_report.txt
 cat ~/hdfs_report.txt
 
-# 2. Check filesystem
+# Check filesystem
 hdfs fsck / -files -blocks
 
-# 3. Monitor real-time stats
+# Monitor real-time stats
 hdfs dfs -df -h
 
-# 4. View NameNode storage
+# View NameNode storage
 hdfs dfsadmin -printTopology
 
-# 5. Check which files you own
+# Check owned files
 hdfs dfs -find / -user $(whoami)
-Challenge Exercise: Word Count MapReduce
-Run a classic MapReduce job:
+```
 
-Bash
-
-# 1. Create a large text file
+### Challenge Exercise: Word Count MapReduce
+```bash
+# Create a large text file
 for i in {1..1000}; do
     echo "Hadoop is awesome. MapReduce is powerful. HDFS is distributed." >> ~/words.txt
 done
 
-# 2. Upload to HDFS
+# Upload to HDFS
 hdfs dfs -put ~/words.txt /user/$(whoami)/
 
-# 3. Run the built-in WordCount example
+# Run WordCount example
 hadoop jar ~/hadoop/share/hadoop/mapreduce/hadoop-mapreduce-examples-3.3.6.jar wordcount /user/$(whoami)/words.txt /user/$(whoami)/wordcount_output
 
-# 4. View the results
+# View results
 hdfs dfs -cat /user/$(whoami)/wordcount_output/part-r-00000
 
-# 5. Download results to local
+# Download results
 hdfs dfs -get /user/$(whoami)/wordcount_output ~/wordcount_results
+```
+
 Expected output:
-
-HDFS    1000
-Hadoop  1000
-MapReduce 1000
-awesome 1000
+```bash
+HDFS        1000
+Hadoop      1000
+MapReduce   1000
+awesome     1000
 distributed 1000
-is      3000
-powerful 1000
-What just happened? You ran your first MapReduce job! The WordCount program:
+is          3000
+powerful    1000
+```
 
-Read the input file from HDFS
+## Additional Resources
 
-Split it into words (Map phase)
+**Official Documentation**:
+- [Apache Hadoop Documentation](https://hadoop.apache.org/docs/)
+- [HDFS Architecture Guide](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html)
+- [YARN Architecture](https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/YARN.html)
+- [MapReduce Tutorial](https://hadoop.apache.org/docs/stable/hadoop-mapreduce-client/hadoop-mapreduce-client-core/MapReduceTutorial.html)
 
-Counted occurrences (Reduce phase)
+**HDFS Commands**:
+| Command | Description |
+|---------|-------------|
+| `hdfs dfs -ls <path>` | List directory |
+| `hdfs dfs -mkdir <path>` | Create directory |
+| `hdfs dfs -put <local> <hdfs>` | Upload file |
+| `hdfs dfs -get <hdfs> <local>` | Download file |
+| `hdfs dfs -cat <file>` | View file content |
+| `hdfs dfs -rm <file>` | Delete file |
+| `hdfs dfs -rm -r <dir>` | Delete directory |
+| `hdfs dfs -cp <src> <dest>` | Copy in HDFS |
+| `hdfs dfs -mv <src> <dest>` | Move in HDFS |
+| `hdfs dfs -du -h <path>` | Directory size |
+| `hdfs dfs -stat <file>` | File statistics |
+| `hdfs dfs -tail <file>` | View last 1KB |
+| `hdfs dfs -count <path>` | Count files/dirs |
+| `hdfs dfs -chmod <mode> <path>` | Change permissions |
+| `hdfs dfs -chown <user>:<group> <path>` | Change ownership |
+| `hdfs dfsadmin -report` | Cluster report |
+| `hdfs fsck <path>` | Check filesystem |
+| `hdfs dfsadmin -safemode get` | Check safe mode |
 
-Wrote results back to HDFS
+**Hadoop Service Commands**:
+| Command | Description |
+|---------|-------------|
+| `start-dfs.sh` | Start HDFS |
+| `start-yarn.sh` | Start YARN |
+| `stop-dfs.sh` | Stop HDFS |
+| `stop-yarn.sh` | Stop YARN |
+| `hadoop-daemon.sh start namenode` | Start NameNode |
+| `hadoop-daemon.sh stop namenode` | Stop NameNode |
+| `yarn-daemon.sh start resourcemanager` | Start ResourceManager |
 
-Additional Resources
-Official Documentation
-Apache Hadoop Documentation
+**Monitoring Commands**:
+| Command | Description |
+|---------|-------------|
+| `jps` | List Java processes |
+| `jps -ml` | Detailed process list |
+| `yarn node -list` | List YARN nodes |
+| `yarn application -list` | List applications |
+| `hdfs dfsadmin -printTopology` | Cluster topology |
 
-HDFS Architecture Guide
+**Learning Path Recommendations**:  
+- **Week 1-2: HDFS Deep Dive**  
+  - Learn block replication strategies  
+  - Understand NameNode high availability  
+  - Practice disaster recovery scenarios  
+- **Week 3-4: MapReduce Programming**  
+  - Write custom MapReduce jobs in Java  
+  - Learn about Combiner and Partitioner  
+  - Optimize MapReduce performance  
+- **Week 5-6: YARN Resource Management**  
+  - Configure resource pools  
+  - Understand scheduling policies  
+  - Monitor application performance  
+- **Week 7-8: Hadoop Ecosystem**  
+  - Apache Hive for SQL on Hadoop  
+  - Apache Pig for data flow scripting  
+  - Apache HBase for NoSQL storage  
 
-YARN Architecture
+**Books and Courses**:  
+- "Hadoop: The Definitive Guide" by Tom White (O'Reilly)  
+- Coursera: "Big Data Specialization" by UC San Diego  
+- Udemy: "Ultimate Hands-On Hadoop" by Frank Kane  
+- edX: "Big Data Fundamentals" by IBM  
 
-MapReduce Tutorial
+**Community and Support**:  
+- [Stack Overflow - Hadoop Tag](https://stackoverflow.com/questions/tagged/hadoop)  
+- [Apache Hadoop Mailing Lists](https://hadoop.apache.org/mailing_lists.html)  
+- Hadoop Users Group  
 
-Useful Commands Reference
-HDFS Commands	Description
-File operations	
-hdfs dfs -ls <path>	List directory
-hdfs dfs -mkdir <path>	Create directory
-hdfs dfs -put <local> <hdfs>	Upload file
-hdfs dfs -get <hdfs> <local>	Download file
-hdfs dfs -cat <file>	View file content
-hdfs dfs -rm <file>	Delete file
-hdfs dfs -rm -r <dir>	Delete directory
-hdfs dfs -cp <src> <dest>	Copy in HDFS
-hdfs dfs -mv <src> <dest>	Move in HDFS
-File information	
-hdfs dfs -du -h <path>	Directory size
-hdfs dfs -stat <file>	File statistics
-hdfs dfs -tail <file>	View last 1KB
-hdfs dfs -count <path>	Count files/dirs
-Permissions	
-hdfs dfs -chmod <mode> <path>	Change permissions
-hdfs dfs -chown <user>:<group> <path>	Change ownership
-Administration	
-hdfs dfsadmin -report	Cluster report
-hdfs fsck <path>	Check filesystem
-hdfs dfsadmin -safemode get	Check safe mode
+## Stopping Hadoop Services
 
-Exportar para as Planilhas
-Hadoop Service Commands	Description
-Start services	
-start-dfs.sh	Start HDFS
-start-yarn.sh	Start YARN
-Stop services	
-stop-dfs.sh	Stop HDFS
-stop-yarn.sh	Stop YARN
-Individual daemon control	
-hadoop-daemon.sh start namenode	Start NameNode
-hadoop-daemon.sh stop namenode	Stop NameNode
-yarn-daemon.sh start resourcemanager	Start ResourceManager
+Shut down services gracefully to avoid data corruption:
 
-Exportar para as Planilhas
-Monitoring Commands	Description
-jps	List Java processes
-jps -ml	Detailed process list
-yarn node -list	List YARN nodes
-yarn application -list	List applications
-hdfs dfsadmin -printTopology	Cluster topology
-
-Exportar para as Planilhas
-Learning Path Recommendations
-After mastering this tutorial, I recommend:
-
-Week 1-2: HDFS Deep Dive
-
-Learn about block replication strategies
-
-Understand NameNode high availability
-
-Practice disaster recovery scenarios
-
-Week 3-4: MapReduce Programming
-
-Write custom MapReduce jobs in Java
-
-Learn about Combiner and Partitioner
-
-Optimize MapReduce performance
-
-Week 5-6: YARN Resource Management
-
-Configure resource pools
-
-Understand scheduling policies
-
-Monitor application performance
-
-Week 7-8: Hadoop Ecosystem
-
-Apache Hive for SQL on Hadoop
-
-Apache Pig for data flow scripting
-
-Apache HBase for NoSQL storage
-
-Books and Courses
-"Hadoop: The Definitive Guide" by Tom White (O'Reilly)
-
-Coursera: "Big Data Specialization" by UC San Diego
-
-Udemy: "Ultimate Hands-On Hadoop" by Frank Kane
-
-edX: "Big Data Fundamentals" by IBM
-
-Community and Support
-Stack Overflow - Hadoop Tag
-
-Apache Hadoop Mailing Lists
-
-Hadoop Users Group
-
-Stopping Hadoop Services
-When you're done working with Hadoop, properly shut down all services:
-
-Bash
-
+```bash
 # Stop YARN services
 stop-yarn.sh
 
@@ -955,184 +848,114 @@ stop-dfs.sh
 
 # Verify all processes stopped
 jps
-# Should only show "Jps" process
-Important: Always stop services gracefully to avoid data corruption!
+```
 
-Starting Fresh (Complete Reset)
-If you need to completely reset your Hadoop installation:
+## Starting Fresh (Complete Reset)
 
-Bash
+To reset your Hadoop installation:
 
-# 1. Stop all services
+```bash
+# Stop all services
 stop-yarn.sh
 stop-dfs.sh
 
-# 2. Remove HDFS data directories
+# Remove HDFS data directories
 rm -rf ~/hadoop_data/hdfs/namenode/*
 rm -rf ~/hadoop_data/hdfs/datanode/*
 
-# 3. Remove logs (optional)
+# Remove logs (optional)
 rm -rf ~/hadoop/logs/*
 
-# 4. Format NameNode
+# Format NameNode
 hdfs namenode -format
 
-# 5. Start services again
+# Start services again
 start-dfs.sh
 start-yarn.sh
-⚠️ WARNING: This will delete ALL data stored in HDFS!
+```
 
-Known Issues and Limitations
-WSL-Specific Issues
-Memory Limitations
+**WARNING**: This deletes ALL data in HDFS!
 
-WSL 2 has memory limits set by Windows
+## Known Issues and Limitations
 
-Default is 50% of total RAM (max 8GB on Windows 10)
+**WSL-Specific Issues**:  
+- **Memory Limitations**: WSL 2 defaults to 50% of total RAM (max 8GB on Windows 10). Configure in `.wslconfig`.  
+- **Network Access**: WSL 2 uses a virtual network adapter. If web UIs don't load, try localhost or WSL's IP (`ip addr`).  
+- **File System Performance**: Avoid storing HDFS data on `/mnt/c/`. Use Linux filesystem (`~/`).  
 
-Can be configured in .wslconfig file
+**Single Node Limitations**:  
+- No fault tolerance  
+- No data redundancy (replication=1)  
+- Limited performance  
+- No load balancing  
+- Perfect for learning and development  
 
-Network Access
+**Next Steps**: Check out the upcoming "Hadoop Multi-Node Cluster Setup" tutorial or simulate multiple nodes using Docker.
 
-WSL 2 uses a virtual network adapter
+## Contributing and Feedback
 
-Port forwarding is usually automatic but may fail
+I welcome:  
+- Bug reports: Open an issue on GitHub  
+- Suggestions: Ideas to improve the tutorial  
+- Questions: Ask in the Discussions section  
 
-If web UIs don't load, try localhost or WSL's IP (ip addr)
+Note: This is an educational resource, not a production guide.
 
-File System Performance
+## License
 
-Accessing Windows files from WSL is slower
+Copyright © 2025 Thiago C. Soares  
 
-Keep Hadoop data in Linux filesystem (~/)
+This work is licensed under a [Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License](https://creativecommons.org/licenses/by-nc-nd/4.0/).  
 
-Don't store HDFS data on /mnt/c/
+**You are free to**:  
+- Share: Copy and redistribute the material  
 
-Single Node Limitations
-This setup is NOT production-ready:
+**Under these terms**:  
+- Attribution: Give appropriate credit and link to the license  
+- NonCommercial: Do not use for commercial purposes  
+- NoDerivatives: Do not distribute modified versions  
 
-❌ No fault tolerance (single point of failure)
-
-❌ No data redundancy (replication=1)
-
-❌ Limited performance (single machine)
-
-❌ No load balancing
-
-✅ Perfect for learning and development
-
-Next Steps: Multi-Node Cluster
-Want to expand to multiple nodes? Check out my next tutorial:
-
-Coming soon: "Hadoop Multi-Node Cluster Setup"
-For now, you can simulate multiple nodes using Docker containers!
-
-Contributing and Feedback
-While this is primarily an educational resource, I welcome:
-
-Bug reports: If commands don't work, open an issue
-
-Suggestions: Ideas for improving the tutorial
-
-Questions: Ask in the Discussions section
-
-However, please note:
-
-This is a learning resource, not a production guide
-
-I update the tutorial based on student feedback
-
-Focus is on clarity over enterprise features
-
-License
-Copyright © 2025 Thiago C. Soares
-
-This work is licensed under a Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License.
-
-You are free to:
-
-Share — copy and redistribute the material in any medium or format
-
-Under the following terms:
-
-Attribution — You must give appropriate credit, provide a link to the license, and indicate if changes were made (but since NoDerivatives, you cannot make changes)
-
-NonCommercial — You may not use the material for commercial purposes
-
-NoDerivatives — If you remix, transform, or build upon the material, you may not distribute the modified material
-
-This means:
-
-✅ Use this tutorial for personal learning
-
-✅ Share the link to this repository
-
-✅ Reference this work in academic papers (with citation)
-
-✅ Use in classroom settings (with attribution)
-
-❌ Repost this content on your own blog/site without permission
-
-❌ Sell this tutorial or include it in paid courses
-
-❌ Modify and redistribute altered versions
-
-❌ Remove author attribution
-
-Citation format:
-Soares, T.C. (2025). Hadoop Single Node Setup on WSL (Ubuntu).
+**Citation format**:  
+Soares, T.C. (2025). Hadoop Single Node Setup on WSL (Ubuntu).  
 Retrieved from https://github.com/thiagosoares/hadoop-single-node-tutorial
 
-Contact
-Thiago C. Soares
-Email: thiagocsoares@gmail.com
-LinkedIn: linkedin.com/in/thiago-csoares
-GitHub: github.com/thiagosoares
+## Contact
 
-Acknowledgments
-I created this tutorial based on:
+Thiago C. Soares  
+Email: thiagocsoares@gmail.com  
+LinkedIn: [linkedin.com/in/thiago-csoares](https://linkedin.com/in/thiago-csoares)  
+GitHub: [github.com/thiagosoares](https://github.com/thiagosoares)
 
-Official Apache Hadoop documentation
+## Acknowledgments
 
-Years of teaching Big Data courses
+This tutorial is based on:  
+- Official Apache Hadoop documentation  
+- Years of teaching Big Data courses  
+- Student feedback and questions  
+- My learning journey with distributed systems  
 
-Student feedback and common questions
+Special thanks to:  
+- My students who tested these instructions  
+- The Apache Hadoop community  
+- All open-source contributors  
 
-My own learning journey with distributed systems
+## Changelog
 
-Special thanks to:
+**Version 1.0.0 (January 2025)**  
+- Initial release  
+- Complete installation guide for Hadoop 3.3.6  
+- WSL/Ubuntu 20.04 specific instructions  
+- 5 practical exercises  
+- Comprehensive troubleshooting section  
 
-My students who tested these instructions
+**If This Helped You**:  
+- Star this repository on GitHub  
+- Share with fellow students/developers  
+- Leave feedback in the Discussions  
+- Email me your success story!  
 
-The Apache Hadoop community
-
-All open-source contributors
-
-Changelog
-Version 1.0.0 (January 2025)
-
-Initial release
-
-Complete installation guide for Hadoop 3.3.6
-
-WSL/Ubuntu 20.04 specific instructions
-
-5 practical exercises
-
-Comprehensive troubleshooting section
-
-If This Helped You
-If this tutorial was helpful:
-
-Star this repository on GitHub
-
-Share with fellow students/developers
-
-Leave feedback in the Discussions
-
-Email me your success story!
-
-Made with love for Big Data learners
-Happy Hadooping!
+Made with love for Big Data learners  
+Happy Hadooping!  
 
 Last updated: October 2025
+```
