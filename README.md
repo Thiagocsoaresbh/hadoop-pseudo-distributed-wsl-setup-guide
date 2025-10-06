@@ -1,4 +1,3 @@
-```markdown
 # Hadoop Pseudo-Distributed Setup Guide for WSL (Ubuntu)
 
 ## Table of Contents
@@ -958,4 +957,3 @@ Made with love for Big Data learners
 Happy Hadooping!  
 
 Last updated: October 2025
-```
