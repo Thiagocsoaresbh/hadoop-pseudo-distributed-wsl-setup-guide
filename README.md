@@ -113,7 +113,7 @@ In this Single Node setup, all Hadoop daemons run on the same machine. Here's wh
 
 First, I updated my system packages and installed all necessary dependencies that Hadoop requires to run properly.
 
-```bash
+
 # Update package lists and upgrade existing packages
 # This ensures we have the latest security patches and software versions
 sudo apt update && sudo apt upgrade -y
@@ -147,8 +147,6 @@ wget/tar: Essential tools for downloading and extracting Hadoop binaries
 Step 2: Download and Configure Hadoop
 Now I downloaded the official Hadoop distribution and set up the directory structure.
 
-Bash
-
 # Download Hadoop 3.3.6 from Apache mirrors
 # The -P flag specifies the download directory (home folder)
 wget [https://downloads.apache.org/hadoop/common/hadoop-3.3.6/hadoop-3.3.6.tar.gz](https://downloads.apache.org/hadoop/common/hadoop-3.3.6/hadoop-3.3.6.tar.gz) -P ~
@@ -177,13 +175,10 @@ Directory structure overview:
 Step 3: Set Up Environment Variables
 I configured the system environment variables so Hadoop commands are accessible from anywhere in the terminal.
 
-Bash
 
 # Open the bash configuration file with nano editor
 nano ~/.bashrc
 Add the following lines at the end of the file:
-
-Bash
 
 # Set Hadoop home directory
 export HADOOP_HOME=~/hadoop
@@ -1140,4 +1135,4 @@ Email me your success story!
 Made with love for Big Data learners
 Happy Hadooping!
 
-Last updated: January 2025
+Last updated: October 2025
